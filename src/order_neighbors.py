@@ -13,6 +13,8 @@ class NeighborProcessing:
         self.filename = fileName
         self.workingRoot = workingRoot
         self.neighbors = pd.read_csv(workingRoot+fileName).iloc[:,1:]
+        self.kClusterDic = {}
+        self.importantClusters = []
         self.v_one_column = np.vectorize(self._one_column)
         self.v_norm_distance = np.vectorize(self._norm_distance)
 
@@ -48,12 +50,11 @@ class NeighborProcessing:
 
     def get_K_neighbor(self,neighInfo,K=2):
         numNeigh = int((neighInfo.shape[1] - 6) / 3)
-        self.kClusterDic = {}
         colIndex = [j for i in range(numNeigh) for j in (3*i+1,3*i+2)]
         resSegment = []
         for res in neighInfo['resName'].unique():
             oneRes = neighInfo[neighInfo['resName'] == res].copy(deep=True)
-            kmeans = KMeans(n_clusters=min(oneRes.shape[0]-1,2)).fit(oneRes.iloc[:,colIndex])
+            kmeans = KMeans(n_clusters=min(oneRes.shape[0]-1,K)).fit(oneRes.iloc[:,colIndex])
             self.kClusterDic[res] = kmeans
             oneRes['Kmeans_cluster'] = kmeans.labels_
             resSegment.append(oneRes)
@@ -64,7 +65,7 @@ class NeighborProcessing:
     def get_final_feature(self,clusteredNearDf:pd.DataFrame,M=4):
         allClusters = clusteredNearDf.sort_values(by=['total_dis']).loc[:,
                       ['resName','Kmeans_cluster']].drop_duplicates().iloc[0:M,]
-        importantClusters = [str(allClusters.iloc[i,0]) +\
+        self.importantClusters = [str(allClusters.iloc[i,0]) +\
                              str(allClusters.iloc[i,1]) for i in range(M)]
         numNeigh = int((clusteredNearDf.shape[1] - 7) / 3)
         finalFeature = []
@@ -72,7 +73,7 @@ class NeighborProcessing:
             oneSample = []
             oneData = clusteredNearDf[clusteredNearDf["order"]==i].copy(deep=True)
             oneData["cluster"] = oneData["resName"] + oneData["Kmeans_cluster"].astype('str')
-            for keyCluster in importantClusters:
+            for keyCluster in self.importantClusters:
                 if oneData[oneData['cluster'] == keyCluster].shape[0] == 0:
                     oneSample.extend(['unknown',999,999])
                 else:

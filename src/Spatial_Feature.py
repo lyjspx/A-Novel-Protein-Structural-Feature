@@ -4,7 +4,7 @@ import os
 import pdbx
 import pandas as pd
 import numpy as np
-from  src.utils import workingRoot
+from src.utils import workingRoot
 from src.PSSM import threeAndOne
 
 backBone = ["N", "CA", "C", "O"]
@@ -92,7 +92,7 @@ class SpatialFeature:
         if atomList.shape[0] < 1:
             print(f'chain {chain} not found in {pdbID} cif file')
             return
-        res_info_chain = np.empty(1000, dtype=[('pdbID', 'S5'), ('chain', 'S2'),
+        res_info_chain = np.empty(2000, dtype=[('pdbID', 'S5'), ('chain', 'S2'),
                                                ('type', 'S4'), ('pdbNum', 'int16'),
                                                ('authNum', 'int16'), ('center', 'float16,float16,float16'),
                                                ('direction', 'float16,float16,float16'),
@@ -163,7 +163,7 @@ class SpatialFeature:
                                           tuple(res_info_chain[res1]['caPosition']))
                     if abs(distance) > 0.0001:  # Exclue 0 distance, e.g. self to self
                         angle = 180 * np.arccos(0.99 * np.dot(vector1, vector2) / (
-                                    np.linalg.norm(vector1) * np.linalg.norm(vector2))) / np.pi
+                                np.linalg.norm(vector1) * np.linalg.norm(vector2))) / np.pi
                     else:
                         angle = 0
                     sqlCommand = f''' INSERT INTO `{tableName}`
@@ -224,31 +224,28 @@ class SpatialFeature:
     def get_N_nearest_neighbor(self, pdbID, chain, pdbNum, N=12, byDistance=True):
         if byDistance:  # N defines total neighbors got
             allNeighbor = self.all_neighbor_fetch(pdbID=pdbID, chain=chain, pdbNum=pdbNum, sort=True, sortByDis=True)
-            return [(x[5],x[6], x[7], x[8], x[9]) for x in allNeighbor[1:N + 1]]
+            return [(x[5], x[6], x[7], x[8], x[9]) for x in allNeighbor[1:N + 1]]
         else:  # N define number of upstream or downstream neighbor; thus 2*N neighbor returned
             allNeighbor = self.all_neighbor_fetch(pdbID=pdbID, chain=chain, pdbNum=pdbNum, sort=True, sortByDis=False)
             totalRes = len(allNeighbor)
             pdbNumList = [x[5] for x in allNeighbor]
             currentPosInTable = pdbNumList.index(pdbNum)
-            return [(-9,-9, "O", 0, 0) for j in range(max(0, N - currentPosInTable))] + \
-                   [(allNeighbor[i][5], allNeighbor[i][6],allNeighbor[i][7], allNeighbor[i][8], allNeighbor[i][9]) \
+            return [(-9, -9, "O", 0, 0) for j in range(max(0, N - currentPosInTable))] + \
+                   [(allNeighbor[i][5], allNeighbor[i][6], allNeighbor[i][7], allNeighbor[i][8], allNeighbor[i][9]) \
                     for i in range(max(0, currentPosInTable - N), currentPosInTable)] + \
-                   [(allNeighbor[i][5], allNeighbor[i][6],allNeighbor[i][7], allNeighbor[i][8], allNeighbor[i][9]) \
+                   [(allNeighbor[i][5], allNeighbor[i][6], allNeighbor[i][7], allNeighbor[i][8], allNeighbor[i][9]) \
                     for i in range(currentPosInTable + 1, min(currentPosInTable + 1 + N, totalRes))] + \
-                   [(-1,-1, "O", 0, 0) for j in range(max(0, currentPosInTable + 1 + N - totalRes))]
+                   [(-1, -1, "O", 0, 0) for j in range(max(0, currentPosInTable + 1 + N - totalRes))]
 
-    def get_sequence_segment(self, pdbID, chain, pdbNum, N=12, byDistance=False,asString=True):
+    def get_sequence_segment(self, pdbID, chain, pdbNum, N=12, byDistance=False, asString=True):
         if not byDistance:
             allNeighbor = self.all_neighbor_fetch(pdbID=pdbID, chain=chain, pdbNum=pdbNum, sort=True, sortByDis=False)
             totalRes = len(allNeighbor)
             pdbNumList = [x[5] for x in allNeighbor]
             currentPosInTable = pdbNumList.index(pdbNum)
             resList = [('O') for j in range(max(0, N - currentPosInTable))] + \
-                   [(allNeighbor[i][7]) for i in range(max(0, currentPosInTable - N),
-                                                       min(currentPosInTable + 1 + N, totalRes))] + \
-                   [('O') for j in range(max(0, currentPosInTable + 1 + N - totalRes))]
+                      [(allNeighbor[i][7]) for i in range(max(0, currentPosInTable - N),
+                                                          min(currentPosInTable + 1 + N, totalRes))] + \
+                      [('O') for j in range(max(0, currentPosInTable + 1 + N - totalRes))]
             if asString:
-                return ''.join([threeAndOne[x] for x in resList] )
-
-    
-
+                return ''.join([threeAndOne[x] for x in resList])
