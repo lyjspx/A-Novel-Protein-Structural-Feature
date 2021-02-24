@@ -18,25 +18,41 @@ class NeighborProcessing:
         self.v_one_column = np.vectorize(self._one_column)
         self.v_norm_distance = np.vectorize(self._norm_distance)
 
+
     def get_similar_neighbor_in_each_sample(self,numNeigh=18,numberProcess=18):
+        '''
+        Find similar neighors for each neighbor within each site
+
+        :param numNeigh:
+        :param numberProcess:
+        :return:
+        '''
         totalDis = []
         with Pool(processes=numberProcess) as pool:
-            for i in pool.map(self._wrap, [3 * x for x in range(numNeigh)]):
-                tempList = []
-                for x in i:
-                    temp = [z for y in x for z in y]
-                    tempList.append(temp)
-                tempList = pd.DataFrame(tempList)
+            for col in [3 * x for x in range(numNeigh)]:
+                x = pool.starmap(self._wrap_novectorize, [(row,
+                                                        col) for row in range(self.neighbors.shape[0])])
+                temp = [[z for y in x[i] for z in y] for i in range(len(x))]
+                tempList = pd.DataFrame(temp)
                 tempList['order'] = list(range(tempList.shape[0]))
                 totalDis.append(tempList)
+            # for i in pool.map(self._wrap, [3 * x for x in range(numNeigh)]):
+            #     tempList = []
+            #     for x in i:
+            #         temp = [z for y in x for z in y]
+            #         tempList.append(temp)
+            #     tempList = pd.DataFrame(tempList)
+            #     tempList['order'] = list(range(tempList.shape[0]))
+            #     totalDis.append(tempList)
+
         totalDis = pd.concat(totalDis)
         totalDis['numNum'] = [i for i in range(numNeigh) for j in range(tempList.shape[0])]
-        totalDis['resName'] = np.ravel(self.neighbors.iloc[:,[3*i for i in range(numNeigh)]],order='F')
+        totalDis['resName'] = np.ravel(self.neighbors.iloc[:,[3 * i     for i in range(numNeigh)]], order='F')
         totalDis['resDis'] = np.ravel(self.neighbors.iloc[:, [3 * i + 1 for i in range(numNeigh)]], order='F')
         totalDis['resAng'] = np.ravel(self.neighbors.iloc[:, [3 * i + 2 for i in range(numNeigh)]], order='F')
         return totalDis
 
-    def get_group_dis(self,similarNeigh,numberProcess=1):
+    def get_group_dis(self,similarNeigh):
         similarNeigh["resName"] = similarNeigh["resName"].fillna('21')
         similarNeigh["resDis"] = similarNeigh["resDis"].fillna(999)
         similarNeigh["resAng"] = similarNeigh["resAng"].fillna(999)
@@ -85,9 +101,19 @@ class NeighborProcessing:
         return self.neighbors.apply(lambda x: self._process_one_row(x, res_name, res_dis, res_angle), axis=1)
 
     def _wrap(self,i):
+        '''
+        deprecated, using too much memory
+        :param i:
+        :return:
+        '''
         return self.v_one_column(self.neighbors.iloc[:,i],
                                  self.neighbors.iloc[:,i+1],
                                  self.neighbors.iloc[:,i+2])
+
+    def _wrap_novectorize(self, row, column):
+        return self._one_column(self.neighbors.iloc[row,column],
+                                 self.neighbors.iloc[row,column+1],
+                                 self.neighbors.iloc[row,column+2])
 
     def _process_one_row(self,one_row_protein, res_name, res_dis, res_angle):
         one_row = []

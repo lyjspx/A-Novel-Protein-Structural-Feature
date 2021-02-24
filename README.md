@@ -1,4 +1,4 @@
-# A-Novel-Protein-Structural-Structure
+# A-Novel-Protein-Structural-Feature
 Citation:
 Core methodology 
 
